@@ -34,7 +34,7 @@ from torch.utils.tensorboard import SummaryWriter
 @dataclass
 class TrainConfig:
     # wandb params
-    project: str = "diffusion_dt"
+    project: str = "dt"
     group: str = "test"
     name: str = "the original"
     # model params
@@ -74,6 +74,8 @@ class TrainConfig:
     diffusion_data_load_path: str = "/data/user/liuzhihong/paper/big_model/diffusion/exp_result/decision_diffuser_collect_data/half_cond_1/hopper-medium-v2/horizon_20/24-0527-103632/hopper-medium-v2/24-0528-2052391.0_2.0/save_traj.npy"
     return_change_coef: float = 1.0
     dataset_scale: str = "(1.0_2.0)"
+    # save
+    save_model: bool = True
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env_name}-{str(uuid.uuid4())[:8]}"
@@ -470,11 +472,12 @@ def train(config: TrainConfig):
     config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
     config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
     set_seed(config.train_seed, deterministic_torch=config.deterministic_torch)
-    # init wandb session for logging
-    root_dir = "/data/user/liuzhihong/paper/big_model/diffusion/exp_result/decision_diffuser_collect_data"
+    # init tensorboard 
+    current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
+    tb_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "tb", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
     name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
-    log_path = os.path.join(root_dir, config.project, config.group, config.env_name, name)
+    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name)
     writer = SummaryWriter(log_dir=log_path)
 
     # data & dataloader setup
@@ -598,13 +601,16 @@ def train(config: TrainConfig):
                 writer.add_scalar(f"eval/{target_return}_normalized_score_std", np.std(normalized_scores), step)
             model.train()
 
-    if config.checkpoints_path is not None:
+    if config.save_model is not None:
         checkpoint = {
             "model_state": model.state_dict(),
             "state_mean": dataset.state_mean,
             "state_std": dataset.state_std,
         }
-        torch.save(checkpoint, os.path.join(config.checkpoints_path, "dt_checkpoint.pt"))
+        save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
+        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
+        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name)
+        torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
 
 
 if __name__ == "__main__":
