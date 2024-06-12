@@ -43,7 +43,7 @@ from value_func.dt_sequence import SequenceHalfcondTimestepDataset
 @dataclass
 class TrainConfig:
     # wandb params
-    project: str = "diffusion_dt"
+    project: str = "dt"
     group: str = "test"
     name: str = "the original"
     # model params
@@ -597,10 +597,12 @@ def train(config: TrainConfig):
     config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
     set_seed(config.train_seed, deterministic_torch=config.deterministic_torch)
     # init wandb session for logging
-    root_dir = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/collect_data"
+    # init tensorboard 
+    current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
+    tb_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "tb", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
-    name = "hor_" + str(config.horizon) + "_er_coef_" + str(config.er_coef) + "_cond_length_" + f"{config.cond_length}_" + timestamp
-    log_path = os.path.join(root_dir, config.project+"_tb", config.group, config.env_name, name)
+    name = f"er_{config.er_coef}"+"cond_length" + str(config.cond_length)
+    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name, timestamp)
     writer = SummaryWriter(log_dir=log_path)
 
     dataset = SequenceHalfcondTimestepDataset(
@@ -729,10 +731,12 @@ def train(config: TrainConfig):
             # "state_mean": dataset.state_mean,
             # "state_std": dataset.state_std,
         }
-        save_path = os.path.join(config.root_save_path, config.project, config.group, config.env_name, f"er_{config.er_coef}_cond_length_{config.cond_length}",timestamp)
+        save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
+        name = f"er_{config.er_coef}"+"cond_length" + str(config.cond_length)
+        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        torch.save(checkpoint, os.path.join(save_path, "uper_value_func_checkpoint.pt"))
+        torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
 
 
 if __name__ == "__main__":

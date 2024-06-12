@@ -30,6 +30,11 @@ import ast
 
 from torch.utils.tensorboard import SummaryWriter
 
+# uper vf
+from value_func.uper_value_function import Value_function_Transformer
+from value_func.dt_sequence import SequenceHalfcondTimestepDataset
+from config.locomotion_config import Config
+
 
 @dataclass
 class TrainConfig:
@@ -71,11 +76,15 @@ class TrainConfig:
     # new add 
     horizon: int = 20
     generate_percentage: float = 0.5
-    diffusion_data_load_path: str = "/data/user/liuzhihong/paper/big_model/diffusion/exp_result/decision_diffuser_collect_data/half_cond_1/hopper-medium-v2/horizon_20/24-0527-103632/hopper-medium-v2/24-0528-2052391.0_2.0/save_traj.npy"
+    diffusion_data_load_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion/store_data/hopper-medium-v2/diffusion_horizon_20_cond_length_1024-0606-225731/24-0610-214516_er_0.95_cond_length_10/save_traj.npy"
     return_change_coef: float = 1.0
     dataset_scale: str = "(1.0_2.0)"
     # save
     save_model: bool = True
+    # uper value func
+    cond_length: int = 10
+    discount: float = 1.0
+
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env_name}-{str(uuid.uuid4())[:8]}"
@@ -418,12 +427,19 @@ class DecisionTransformer(nn.Module):
         return out
 
 
+def build_traj(states, actions, device):
+    traj = torch.cat([actions, states], dim=-1).to(device)
+    return traj
+
 # Training and evaluation logic
 @torch.no_grad()
 def eval_rollout(
     model: DecisionTransformer,
     env: gym.Env,
     target_return: float,
+    uper_vf,
+    dataset, # 用来norm
+    cond_length,
     device: str = "cpu",
 ) -> Tuple[float, float]:
     states = torch.zeros(
@@ -441,6 +457,9 @@ def eval_rollout(
 
     # cannot step higher than model episode len, as timestep embeddings will crash
     episode_return, episode_len = 0.0, 0.0
+
+    # deal with return to go
+
     for step in range(model.episode_len):
         # first select history up to step, then select last seq_len states,
         # step + 1 as : operator is not inclusive, last action is dummy with zeros
@@ -456,7 +475,22 @@ def eval_rollout(
         # at step t, we predict a_t, get s_{t + 1}, r_{t + 1}
         actions[:, step] = torch.as_tensor(predicted_action)
         states[:, step + 1] = torch.as_tensor(next_state)
-        returns[:, step + 1] = torch.as_tensor(returns[:, step] - reward)
+
+        # uper_return predict
+        # 此处设定就是uper vf预测的是cond length之后下一步的return to go
+        if step >= cond_length-1:
+            traj = build_traj(
+                states[:,:step+1][:,-cond_length:],
+                actions[:,:step+1][:,-cond_length:]
+            )
+            uper_returns = uper_vf(
+                traj,
+                time_steps[:,:step+1][:,-cond_length:]
+            )
+            next_return = torch.max(returns[:, step] - reward, uper_returns)
+        else:
+            next_return = returns[:, step] - reward
+        returns[:, step + 1] = torch.as_tensor(next_return)
 
         episode_return += reward
         episode_len += 1
@@ -476,8 +510,8 @@ def train(config: TrainConfig):
     current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
     tb_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "tb", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
-    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_"
-    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name, timestamp)
+    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
+    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name)
     writer = SummaryWriter(log_dir=log_path)
 
     # data & dataloader setup
@@ -540,6 +574,34 @@ def train(config: TrainConfig):
         optim,
         lambda steps: min((steps + 1) / config.warmup_steps, 1),
     )
+
+    # uper value func
+    uper_vf = Value_function_Transformer(
+        transition_dim=config.state_dim + config.action_dim, # action + state no reward
+        embedding_dim=config.embedding_dim,
+        seq_len=config.cond_length,
+        episode_len=config.episode_len,
+        num_layers=config.num_layers,
+        num_heads=config.num_heads,
+        attention_dropout=config.attention_dropout,
+        residual_dropout=config.residual_dropout,
+        embedding_dropout=config.embedding_dropout,
+        # max_action=config.max_action,
+    ).to(config.device)
+
+    dataset = SequenceHalfcondTimestepDataset(
+        env=config.env_name,
+        horizon=config.horizon,
+        normalizer=Config.normalizer,
+        preprocess_fns=Config.preprocess_fns,
+        use_padding=Config.use_padding,
+        max_path_length=Config.max_path_length,
+        include_returns=Config.include_returns,
+        returns_scale=Config.returns_scale,
+        discount=config.discount,
+        cond_length=config.cond_length,
+    )
+
     # save config to the checkpoint
     if config.checkpoints_path is not None:
         print(f"Checkpoints path: {config.checkpoints_path}")
@@ -608,10 +670,8 @@ def train(config: TrainConfig):
             "state_std": dataset.state_std,
         }
         save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
-        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]"
-        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
+        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name)
         torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
 
 

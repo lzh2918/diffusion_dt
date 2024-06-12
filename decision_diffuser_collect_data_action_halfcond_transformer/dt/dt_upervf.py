@@ -30,6 +30,11 @@ import ast
 
 from torch.utils.tensorboard import SummaryWriter
 
+# uper vf
+from value_func.uper_value_function import Value_function_Transformer
+from value_func.dt_sequence import SequenceHalfcondTimestepDataset
+from config.locomotion_config import Config
+
 
 @dataclass
 class TrainConfig:
@@ -61,7 +66,8 @@ class TrainConfig:
     # evaluation params
     target_returns: str = "(2000.0_2500.0_3000.0)"
     eval_episodes: int = 10
-    eval_every: int = 10_00
+    # eval_every: int = 10_00 # 调试修改过
+    eval_every: int = 10 # 调试修改过
     # general params
     checkpoints_path: Optional[str] = None
     deterministic_torch: bool = False
@@ -71,11 +77,16 @@ class TrainConfig:
     # new add 
     horizon: int = 20
     generate_percentage: float = 0.5
-    diffusion_data_load_path: str = "/data/user/liuzhihong/paper/big_model/diffusion/exp_result/decision_diffuser_collect_data/half_cond_1/hopper-medium-v2/horizon_20/24-0527-103632/hopper-medium-v2/24-0528-2052391.0_2.0/save_traj.npy"
+    diffusion_data_load_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion/store_data/hopper-medium-v2/diffusion_horizon_20_cond_length_1024-0606-225731/24-0610-214516_er_0.95_cond_length_10/save_traj.npy"
     return_change_coef: float = 1.0
     dataset_scale: str = "(1.0_2.0)"
     # save
     save_model: bool = True
+    # uper value func
+    cond_length: int = 10
+    discount: float = 1.0
+    uper_vf_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/hopper-medium-v2/er_0.95_cond_length_10/24-0611-161800/uper_value_func_checkpoint.pt"
+
 
     def __post_init__(self):
         self.name = f"{self.name}-{self.env_name}-{str(uuid.uuid4())[:8]}"
@@ -418,12 +429,30 @@ class DecisionTransformer(nn.Module):
         return out
 
 
+def build_traj(states, actions, norm_dateset, unnorm_coef):
+    state_mean = torch.tensor(unnorm_coef[0], dtype=states.dtype,device=states.device)
+    state_std = torch.tensor(unnorm_coef[1], dtype=states.dtype,device=states.device)
+    states = states * state_std + state_mean
+
+    normed_states = torch.tensor(norm_dateset.normalizer(states.cpu().numpy(), "observations"), dtype=states.dtype,device=states.device)
+    normed_actions = torch.tensor(norm_dateset.normalizer(actions.cpu().numpy(), "actions"), dtype=states.dtype,device=states.device)
+
+    traj = torch.cat([normed_actions, normed_states], dim=-1)
+
+    return traj
+
 # Training and evaluation logic
 @torch.no_grad()
 def eval_rollout(
     model: DecisionTransformer,
     env: gym.Env,
     target_return: float,
+    uper_vf,
+    norm_dataset, # 用来norm
+    unnorm_coef, # 用来upf unnorm
+    cond_length,
+    return_scale, # 和vf对应的return scale
+    reward_scale, # DT本身的reward scale
     device: str = "cpu",
 ) -> Tuple[float, float]:
     states = torch.zeros(
@@ -441,6 +470,10 @@ def eval_rollout(
 
     # cannot step higher than model episode len, as timestep embeddings will crash
     episode_return, episode_len = 0.0, 0.0
+
+    # deal with return to go
+    uper_error_list = []
+
     for step in range(model.episode_len):
         # first select history up to step, then select last seq_len states,
         # step + 1 as : operator is not inclusive, last action is dummy with zeros
@@ -456,7 +489,26 @@ def eval_rollout(
         # at step t, we predict a_t, get s_{t + 1}, r_{t + 1}
         actions[:, step] = torch.as_tensor(predicted_action)
         states[:, step + 1] = torch.as_tensor(next_state)
-        returns[:, step + 1] = torch.as_tensor(returns[:, step] - reward)
+
+        # uper_return predict
+        # 此处设定就是uper vf预测的是cond length之后下一步的return to go
+        if step >= cond_length-1:
+            traj = build_traj(
+                states[:,:step+1][:,-cond_length:],
+                actions[:,:step+1][:,-cond_length:],
+                norm_dataset,
+                unnorm_coef,
+            )
+            uper_returns = uper_vf(
+                traj,
+                time_steps[:,:step+1][:,-cond_length:]
+            )
+            uper_returns = uper_returns[0] * return_scale * reward_scale
+            uper_error_list.append((uper_returns - (returns[:, step] - reward)).item())
+            next_return = torch.max(returns[:, step] - reward, uper_returns)
+        else:
+            next_return = returns[:, step] - reward
+        returns[:, step + 1] = torch.as_tensor(next_return)
 
         episode_return += reward
         episode_len += 1
@@ -464,7 +516,7 @@ def eval_rollout(
         if done:
             break
 
-    return episode_return, episode_len
+    return episode_return, episode_len, uper_error_list
 
 
 @pyrallis.wrap()
@@ -476,7 +528,8 @@ def train(config: TrainConfig):
     current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
     tb_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "tb", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
-    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_"
+    uper_vf_tag = config.uper_vf_path.split("/")[-3]
+    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + f"_{uper_vf_tag}"
     log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name, timestamp)
     writer = SummaryWriter(log_dir=log_path)
 
@@ -540,6 +593,36 @@ def train(config: TrainConfig):
         optim,
         lambda steps: min((steps + 1) / config.warmup_steps, 1),
     )
+
+    # uper value func
+    uper_vf = Value_function_Transformer(
+        transition_dim=config.state_dim + config.action_dim, # action + state no reward
+        embedding_dim=config.embedding_dim,
+        seq_len=config.cond_length,
+        episode_len=config.episode_len,
+        num_layers=config.num_layers,
+        num_heads=config.num_heads,
+        attention_dropout=config.attention_dropout,
+        residual_dropout=config.residual_dropout,
+        embedding_dropout=config.embedding_dropout,
+        # max_action=config.max_action,
+    ).to(config.device)
+    uper_vf_state_dict = torch.load(config.uper_vf_path)["model_state"]
+    uper_vf.load_state_dict(uper_vf_state_dict)
+
+    norm_dataset = SequenceHalfcondTimestepDataset(
+        env=config.env_name,
+        horizon=config.horizon,
+        normalizer=Config.normalizer,
+        preprocess_fns=Config.preprocess_fns,
+        use_padding=Config.use_padding,
+        max_path_length=Config.max_path_length,
+        include_returns=Config.include_returns,
+        returns_scale=Config.returns_scale,
+        discount=config.discount,
+        cond_length=config.cond_length,
+    )
+
     # save config to the checkpoint
     if config.checkpoints_path is not None:
         print(f"Checkpoints path: {config.checkpoints_path}")
@@ -582,15 +665,24 @@ def train(config: TrainConfig):
             for target_return in config.target_returns:
                 eval_env.seed(config.eval_seed)
                 eval_returns = []
+                uper_error_list = []
                 for _ in trange(config.eval_episodes, desc="Evaluation", leave=False):
-                    eval_return, eval_len = eval_rollout(
+                    eval_return, eval_len, uper_error = eval_rollout(
                         model=model,
                         env=eval_env,
                         target_return=target_return * config.reward_scale,
+                        uper_vf=uper_vf,
+                        norm_dataset=norm_dataset,
+                        unnorm_coef=(dataset.state_mean, dataset.state_std),
+                        cond_length=config.cond_length,
+                        return_scale=Config.returns_scale,
+                        reward_scale=config.reward_scale,
                         device=config.device,
                     )
                     # unscale for logging & correct normalized score computation
                     eval_returns.append(eval_return / config.reward_scale)
+                    # uper error
+                    uper_error_list.append(uper_error.mean())
 
                 normalized_scores = (
                     eval_env.get_normalized_score(np.array(eval_returns)) * 100
@@ -599,6 +691,8 @@ def train(config: TrainConfig):
                 # writer.add_scalar(f"eval/{target_return}_return_std", np.std(eval_returns), step)
                 writer.add_scalar(f"eval/{target_return}_normalized_score_mean", np.mean(normalized_scores), step)
                 writer.add_scalar(f"eval/{target_return}_normalized_score_std", np.std(normalized_scores), step)
+                writer.add_scalar(f"eval/{target_return}_uper_error_mean", uper_error_list.mean(), step)
+                writer.add_scalar(f"eval/{target_return}_uper_error_std", uper_error_list.std(), step)
             model.train()
 
     if config.save_model is not None:
@@ -608,8 +702,8 @@ def train(config: TrainConfig):
             "state_std": dataset.state_std,
         }
         save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
-        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]"
-        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
+        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + f"_{uper_vf_tag}"
+        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name, timestamp)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
