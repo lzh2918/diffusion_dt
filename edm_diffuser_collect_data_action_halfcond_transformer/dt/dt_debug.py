@@ -70,8 +70,8 @@ class TrainConfig:
     device: str = "cuda"
     # new add 
     horizon: int = 20
-    generate_percentage: float = 0.5
-    diffusion_data_load_path: str = "/data/user/liuzhihong/paper/big_model/diffusion/exp_result/decision_diffuser_collect_data/half_cond_1/hopper-medium-v2/horizon_20/24-0527-103632/hopper-medium-v2/24-0528-2052391.0_2.0/save_traj.npy"
+    generate_percentage: float = 0.0
+    diffusion_data_load_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion/store_data/hopper-medium-v2/diffusion_horizon_20_cond_length_1024-0606-225731/24-0610-214516_er_0.95_cond_length_10/save_traj.npy"
     return_change_coef: float = 1.0
     dataset_scale: str = "(1.0_2.0)"
     # save
@@ -476,8 +476,8 @@ def train(config: TrainConfig):
     current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
     tb_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "tb", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
-    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_"
-    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name, timestamp)
+    name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
+    log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name)
     writer = SummaryWriter(log_dir=log_path)
 
     # data & dataloader setup
@@ -608,10 +608,8 @@ def train(config: TrainConfig):
             "state_std": dataset.state_std,
         }
         save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
-        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]"
-        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + "_data_scale_" + f"[{config.dataset_scale[0]},{config.dataset_scale[1]}]_" + timestamp
+        save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name)
         torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
 
 

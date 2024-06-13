@@ -2,7 +2,7 @@
 
 cuda=("2" "2" "3" "3")
 
-project="diffusion_dt"
+project="dt"
 group="half_cond_1"
 # name="ho_20_scale_0.7_1.3"
 

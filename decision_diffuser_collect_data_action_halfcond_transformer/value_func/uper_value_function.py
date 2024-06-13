@@ -70,7 +70,7 @@ class TrainConfig:
     # evaluation params
     target_returns: str = "(2000.0_2500.0_3000.0)"
     eval_episodes: int = 10
-    eval_every: int = 10_00
+    eval_every: int = 20_00
     # general params
     checkpoints_path: Optional[str] = None 
     deterministic_torch: bool = False
@@ -90,7 +90,6 @@ class TrainConfig:
     # expect_regression
     er_coef: float = 0.5
     # save
-    root_save_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/collect_data"
     save_checkpoints: bool = False
 
 
@@ -694,7 +693,7 @@ def train(config: TrainConfig):
 
         writer.add_scalar("train/train_loss", loss.item(), step)
         writer.add_scalar("train/learning_rate", scheduler.get_last_lr()[0], step)
-        if step % 1000 == 0:
+        if step % config.eval_every == 0:
             writer.add_scalar("eval/predict_return", predicted_returns.mean(), step)
             writer.add_scalar("eval/returns", np_returns.mean(), step)
             writer.add_scalar("eval/predict_return_last10", sorted_predicted_returns[:total_length//10].mean(), step)
@@ -720,7 +719,9 @@ def train(config: TrainConfig):
                         # "state_mean": dataset.state_mean,
                         # "state_std": dataset.state_std,
                     }
-                    save_path = os.path.join(config.root_save_path, config.project, config.group, config.env_name, f"er_{config.er_coef}_cond_length_{config.cond_length}",timestamp)
+                    save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
+                    name = f"er_{config.er_coef}"+"cond_length" + str(config.cond_length) + f"_layer_{config.num_layers}_head_{config.num_heads}"
+                    save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
                     if not os.path.exists(save_path):
                         os.makedirs(save_path)
                     torch.save(checkpoint, os.path.join(save_path, "uper_value_func_checkpoint_0.7.pt"))
@@ -732,7 +733,7 @@ def train(config: TrainConfig):
             # "state_std": dataset.state_std,
         }
         save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
-        name = f"er_{config.er_coef}"+"cond_length" + str(config.cond_length)
+        name = f"er_{config.er_coef}"+"cond_length" + str(config.cond_length) + f"_layer_{config.num_layers}_head_{config.num_heads}"
         save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
