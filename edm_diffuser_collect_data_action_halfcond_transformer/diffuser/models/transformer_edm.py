@@ -234,7 +234,7 @@ class FinalLayer(nn.Module):
         return x
 
 
-class DiT(nn.Module):
+class DiT_EDM(nn.Module):
     """
     Diffusion model with a Transformer backbone. DIT建出来这么简单吗,
     """

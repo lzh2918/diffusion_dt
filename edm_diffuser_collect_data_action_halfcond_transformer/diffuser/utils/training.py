@@ -136,6 +136,9 @@ class Trainer(object):
 
             if self.step == 0 and self.sample_freq:
                 self.render_reference(self.n_reference)
+                batch = next(self.dataloader)
+                batch = batch_to_device(batch, device=self.device)
+                self.test_eval(batch.conditions, batch.returns, self.step)
 
             if self.sample_freq and self.step % self.sample_freq == 0:
                 
@@ -147,6 +150,12 @@ class Trainer(object):
                     self.render_samples()
 
             self.step += 1
+
+    def test_eval(self, cond, returns, steps):
+        if steps == 0:
+            self.model(cond, returns)
+        else:
+            pass
 
     def save(self):
         '''
