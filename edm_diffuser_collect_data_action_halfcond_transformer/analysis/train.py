@@ -14,18 +14,37 @@ if __name__ == '__main__':
     import argparse
     import datetime
 
+    class edm_cfg:
+        num_steps_denoising: int = 10
+        sigma_min: float = 2e-3
+        # simga sampler
+        sigma_max: float = 40
+        # diffusion sampler
+        sigma_max: float = 10
+        rho: int = 7
+        order: int = 1
+        s_churn: float = 0
+        s_tmin: float = 0
+        s_tmax: float = float("inf")
+        s_noise: float = 1
+        scale: float = 1.478
+        loc: float = -0.225
+        sigma_offset_noise: float = 1.0
+        sigma_data: float = 1.0
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="halfcheetah-medium-replay-v2")
     parser.add_argument("--group", type=str, default="test")
     parser.add_argument("--horizon",type=int, default=20)
     parser.add_argument("--discount", type=float, default=1.0)
     parser.add_argument("--ar_inv", type=bool, default=False)
-    parser.add_argument("--diffusion", type=str, default="models.GaussianDiffusion")
+    parser.add_argument("--diffusion", type=str, default="models.EDMDiffusion")
     # model
     parser.add_argument("--model", type=str, default="models.DiT")
     parser.add_argument("--dim", type=int, default=384)
     parser.add_argument("--transformer_deepth", type=int, default=12)
     parser.add_argument("--transformer_heads", type=int, default=6)
+    parser.add_argument("--edm_cfg", type=edm_cfg, default=edm_cfg())
     # dataset
     parser.add_argument("--data_loader", type=str, default="datasets.SequenceHalfcondDataset")
     parser.add_argument("--cond_length", type=int, default=10)

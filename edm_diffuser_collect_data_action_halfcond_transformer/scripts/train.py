@@ -142,6 +142,7 @@ def main(args, **deps):
             horizon=Config.horizon,
             observation_dim=observation_dim,
             action_dim=action_dim,
+            edm_cfg=args.edm_cfg, # new add edm
             n_timesteps=Config.n_diffusion_steps,
             loss_type=Config.loss_type,
             clip_denoised=Config.clip_denoised,
