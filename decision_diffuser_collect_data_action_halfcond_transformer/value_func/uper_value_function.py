@@ -737,7 +737,7 @@ def train(config: TrainConfig):
         save_path = os.path.join(save_root_dir_path, config.project, config.group, config.env_name, name,timestamp)
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        torch.save(checkpoint, os.path.join(save_path, "dt_checkpoint.pt"))
+        torch.save(checkpoint, os.path.join(save_path, "uper_value_func_checkpoint.pt"))
 
 
 if __name__ == "__main__":
