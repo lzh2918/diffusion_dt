@@ -475,6 +475,27 @@ class TimestepEmbedder(nn.Module):
         t_emb = self.mlp(t_freq)
         return t_emb
 
+
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
+    """
+    embed_dim: output dimension for each position
+    pos: a list of positions to be encoded: size (M,)
+    out: (M, D)
+    """
+    assert embed_dim % 2 == 0
+    omega = np.arange(embed_dim // 2, dtype=np.float64)
+    omega /= embed_dim / 2.
+    omega = 1. / 10000**omega  # (D/2,)
+
+    pos = pos.reshape(-1)  # (M,)
+    out = np.einsum('m,d->md', pos, omega)  # (M, D/2), outer product
+
+    emb_sin = np.sin(out) # (M, D/2)
+    emb_cos = np.cos(out) # (M, D/2)
+
+    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
+    return emb
+
     
 class Value_function_Transformer(nn.Module):
     def __init__(
@@ -497,8 +518,12 @@ class Value_function_Transformer(nn.Module):
         self.out_norm = nn.LayerNorm(embedding_dim)
         # additional seq_len embeddings for padding timesteps
         #要不这个改成position embedding？关系大吗？
+
+        # 直接把timestep_emb替换成pos_emb
         # self.timestep_emb = nn.Embedding(episode_len + seq_len, embedding_dim) # 这个time embedding 和 position embedding的关系怎么说？说不清楚啊，有点
-        self.timestep_emb = TimestepEmbedder(embedding_dim)
+        # self.timestep_emb = TimestepEmbedder(embedding_dim)
+        self.pos_embed = nn.Parameter(torch.zeros(1, seq_len, embedding_dim), requires_grad=False)
+
         # self.state_emb = nn.Linear(state_dim, embedding_dim)
         # self.action_emb = nn.Linear(action_dim, embedding_dim)
         # self.return_emb = nn.Linear(1, embedding_dim)
@@ -534,8 +559,7 @@ class Value_function_Transformer(nn.Module):
 
         self.apply(self._init_weights)
 
-    @staticmethod
-    def _init_weights(module: nn.Module):
+    def _init_weights(self, module: nn.Module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
             if isinstance(module, nn.Linear) and module.bias is not None:
@@ -543,6 +567,8 @@ class Value_function_Transformer(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             torch.nn.init.zeros_(module.bias)
             torch.nn.init.ones_(module.weight)
+        pos_embed = get_1d_sincos_pos_embed_from_grid(self.pos_embed.shape[-1], np.arange(self.seq_len))
+        self.pos_embed.data.copy_(torch.from_numpy(pos_embed).float().unsqueeze(0))
 
     def forward(
         self,
@@ -551,8 +577,8 @@ class Value_function_Transformer(nn.Module):
         padding_mask: Optional[torch.Tensor] = None,  # [batch_size, seq_len]
     ) -> torch.FloatTensor:
         batch_size, seq_len = trajectories.shape[0], trajectories.shape[1]
-        time_emb = self.timestep_emb(time_steps)
-        traj_emb = self.traj_embedder(trajectories) + time_emb
+        # time_emb = self.timestep_emb(time_steps)
+        traj_emb = self.traj_embedder(trajectories) + self.pos_embed
 
         if padding_mask is not None:
             # [batch_size, seq_len * 3], stack mask identically to fit the sequence
