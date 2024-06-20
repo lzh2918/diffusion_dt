@@ -41,6 +41,7 @@ def cycle(dl):
 #     return conditions, returns
 
 def evaluate(args, **deps):
+    torch.set_num_threads(1)
     from ml_logger import logger, RUN
     from config.locomotion_config import Config
 
@@ -232,6 +233,7 @@ def evaluate(args, **deps):
     total_num = args.collect_num
 
     while collected_num < total_num:
+        print("collect_percen: ",collected_num/total_num)
         batch = next(condition_data_loader)
         batch = utils.arrays.batch_to_device(batch)
         # conditions, dataset_returns = get_conditions(batch, action_dim, device)

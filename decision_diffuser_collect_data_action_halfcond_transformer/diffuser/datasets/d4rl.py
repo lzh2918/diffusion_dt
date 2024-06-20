@@ -1,8 +1,10 @@
 import os
 import collections
 import numpy as np
+import d4rl.gym_mujoco
 import gym
 import pdb
+
 
 from contextlib import (
     contextmanager,
