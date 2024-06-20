@@ -15,7 +15,7 @@ if __name__ == '__main__':
     import datetime
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="halfcheetah-medium-replay-v2")
+    parser.add_argument("--task", type=str, default="walker2d-medium-v2")
     parser.add_argument("--group", type=str, default="test")
     parser.add_argument("--horizon",type=int, default=20)
     parser.add_argument("--discount", type=float, default=1.0)

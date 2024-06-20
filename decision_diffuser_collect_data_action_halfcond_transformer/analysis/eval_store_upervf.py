@@ -14,13 +14,13 @@ if __name__ == '__main__':
     import datetime
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--task", type=str, default="hopper-medium-expert-v2")
+    parser.add_argument("--task", type=str, default="halfcheetah-medium-replay-v2")
     # parser.add_argument("--group", type=str, default="test")
     # parser.add_argument("--data_loader", type=str, default="datasets.SequenceRewardDataset")
     parser.add_argument("--collect_num", type=int, default=1000)
     parser.add_argument("--data_loader", type=str, default="datasets.SequenceHalfcondTimestepDataset")
     parser.add_argument("--horizon", type=int, default=20)
-    parser.add_argument("--loadpath", type=str, default="/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion/hopper-medium-v2/horizon_20_cond_length_10/24-0606-225731/checkpoint")
+    parser.add_argument("--loadpath", type=str, default="/home/liuzhihong/diffusion_dt_temp/code/exp_result/saved_model/collect_data/half_cond_diffusion/halfcheetah-medium-replay-v2/horizon_20_cond_length_5/24-0608-210615/checkpoint")
     parser.add_argument("--discount", type=float, default=1.0)
     parser.add_argument("--return_scale_high", type=float, default=1.2)
     parser.add_argument("--return_scale_low", type=float, default=1.0)
@@ -31,11 +31,11 @@ if __name__ == '__main__':
     parser.add_argument("--transformer_deepth", type=int, default=12)
     parser.add_argument("--transformer_heads", type=int, default=6)
     # half cond
-    parser.add_argument("--cond_length", type=int, default=10)
+    parser.add_argument("--cond_length", type=int, default=5)
     # uper vf
     parser.add_argument("--value_func_emb_dim", type=int, default=128)
     parser.add_argument("--max_episode_len", type=int, default=1000)
-    parser.add_argument("--uper_vf_path", type=str, default="/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/hopper-medium-v2/er_0.95_cond_length_10/24-0611-161800/uper_value_func_checkpoint.pt")
+    parser.add_argument("--uper_vf_path", type=str, default="/home/liuzhihong/diffusion_dt_temp/code/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/halfcheetah-medium-replay-v2/er_0.95cond_length5_layer_3_head_1/24-0618-143732/uper_value_func_checkpoint.pt")
 
 
     args = parser.parse_args()
