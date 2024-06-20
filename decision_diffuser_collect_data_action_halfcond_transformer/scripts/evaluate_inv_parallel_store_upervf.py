@@ -44,6 +44,8 @@ def evaluate(args, **deps):
     from ml_logger import logger, RUN
     from config.locomotion_config import Config
 
+    torch.set_num_threads(1)
+
     RUN._update(deps)
     Config._update(deps)
 
