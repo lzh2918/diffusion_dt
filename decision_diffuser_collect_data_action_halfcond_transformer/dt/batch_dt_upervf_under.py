@@ -440,7 +440,7 @@ class batch_eval_env:
     
     def seed(self, seed):
         for single_eval_env in self.eval_env_list:
-            single_eval_env.seed(seed)
+            single_eval_env.seed(int(seed))
 
     def reset(self):
         batch_data = []
@@ -577,7 +577,7 @@ def eval_rollout(
     return episode_return, episode_len, uper_error
 
 
-@pyrallis.wrap()
+# @pyrallis.wrap()
 def train(config):
     config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
     config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
