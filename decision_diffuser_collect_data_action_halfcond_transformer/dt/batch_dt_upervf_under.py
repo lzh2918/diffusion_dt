@@ -579,6 +579,7 @@ def eval_rollout(
 
 # @pyrallis.wrap()
 def train(config):
+    torch.set_num_threads(4)
     config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
     config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
     set_seed(config.train_seed, deterministic_torch=config.deterministic_torch)

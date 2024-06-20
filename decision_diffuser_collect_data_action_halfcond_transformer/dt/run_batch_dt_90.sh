@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cuda=("0" "3" "4")
+cuda=("0" "1" "2" "3")
 
 project="dt"
 group="dt_upertimelong"
@@ -8,7 +8,7 @@ group="dt_upertimelong"
 
 task=("halfcheetah-medium-v2" "halfcheetah-medium-replay-v2" "halfcheetah-medium-expert-v2" "hopper-medium-v2" "hopper-medium-replay-v2" "hopper-medium-expert-v2" "walker2d-medium-v2" "walker2d-medium-replay-v2" "walker2d-medium-expert-v2")
 horizon=20
-generate_percentage=(1.0 0.2 0.6 0.0)
+generate_percentage_list="(1.0_0.2_0.6_0.0)"
 target_returns="(0.0_3000.0_5000.0)"
 cond_length=(2 5 10) 
 diffusion_data_load_path=(/home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/halfcheetah-medium-v2/diff_horizon_20_cond_length_2/uper_vf_er_0.95cond_length2_layer_3_head_1/diff_date_24-0606-225729_upervf_date_24-0613-133827/24-0620-140355/save_traj.npy # halfcheetah medium 2
@@ -68,32 +68,35 @@ upervf_path=(/home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_d
              /home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/walker2d-medium-expert-v2/er_0.95cond_length10_layer_3_head_1/24-0618-143800/uper_value_func_checkpoint.pt # walker2d medium expert 10
              )
 
-train_file="/home/liuzhihong/diffusion_dt_temp/code/diffusion_dt/decision_diffuser_collect_data_action_halfcond_transformer/dt/batch_dt_upervf_uper.py"
+train_file="/home/liuzhihong/diffusion_dt_temp/code/decision_diffuser_collect_data_action_halfcond_transformer/dt/batch_dt_upervf_uper.py"
 model_index_map=(0 1 2 3 4 5 6 7 8 9 10 11)
+cuda_index_map=(0 0 0 1 1 1 2 2 2 3 3 3)
 
 $i
 $j
-k=0
 $index
 $model_index
+$cuda_index
 
-for ((i=0;i<3;i++))
+for ((i=0;i<4;i++)) # 4个环境
 do
-    for ((j=0;j<4;j++))
+    for ((j=0;j<3;j++)) # cond length 3
     do
-        ((index= 4*i+j))
+        ((index= 3*i+j))
         ((model_index = ${model_index_map[$index]}))
+        ((cuda_index = ${cuda_index_map[$index]}))
+        echo $index
         log_dir="/home/liuzhihong/diffusion_dt_temp/exp_result/log/halfcond_dt_$index.txt"
-        CUDA_VISIBLE_DEVICES=${cuda[$i]} python -u $train_file\
+        CUDA_VISIBLE_DEVICES=${cuda[$cuda_index]} python -u $train_file\
                                                 --project $project \
                                                 --group $group \
-                                                --env_name ${task[$k]} \
+                                                --env_name ${task[$i]} \
                                                 --horizon $horizon \
-                                                --generate_percentage ${generate_percentage[$j]}  \
+                                                --generate_percentage_list $generate_percentage_list  \
                                                 --target_returns $target_returns\
-                                                --cond_length ${cond_length[$i]}\
-                                                --diffusion_data_load_path ${diffusion_data_load_path[$i]}\
-                                                --uper_vf_path ${uper_vf_path[$i]} > $log_dir 2>&1 &
+                                                --cond_length ${cond_length[$j]}\
+                                                --diffusion_data_load_path ${diffusion_data_load_path[$model_index]}\
+                                                --uper_vf_path ${upervf_path[$model_index]} > $log_dir 2>&1 &
         sleep 2
     done
 done

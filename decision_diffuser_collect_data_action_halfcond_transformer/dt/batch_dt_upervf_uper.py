@@ -37,7 +37,6 @@ from config.locomotion_config import Config
 
 from batch_dt_upervf_under import train
 
-circle_time=3
 
 @dataclass
 class TrainConfig:
@@ -98,13 +97,20 @@ class TrainConfig:
         if self.checkpoints_path is not None:
             self.checkpoints_path = os.path.join(self.checkpoints_path, self.name)
 
-for i in range(circle_time):
-    trian_seed = np.random.randint(0,100,1)[0]
-    eval_seed = np.random.randint(0,100,1)[0]
-    config = TrainConfig()
-    config.train_seed = trian_seed
-    config.eval_seed = eval_seed
-    generate_percentage_list = ast.literal_eval(config.generate_percentage_list.replace("_",", "))
-    for generate_percentage in generate_percentage_list:
-        config.generate_percentage = generate_percentage
-        train(config)
+@pyrallis.wrap()
+def main(config: TrainConfig):
+    circle_time=3
+    for i in range(circle_time):
+        trian_seed = np.random.randint(0,100,1)[0]
+        eval_seed = np.random.randint(0,100,1)[0]
+        config = TrainConfig()
+        config.train_seed = trian_seed
+        config.eval_seed = eval_seed
+        generate_percentage_list = ast.literal_eval(config.generate_percentage_list.replace("_",", "))
+        for generate_percentage in generate_percentage_list:
+            config.generate_percentage = generate_percentage
+            train(config)
+
+if __name__ == "__main__":
+    main()
+
