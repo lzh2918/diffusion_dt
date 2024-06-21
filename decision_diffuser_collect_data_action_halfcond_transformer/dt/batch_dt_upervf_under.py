@@ -580,8 +580,9 @@ def eval_rollout(
 # @pyrallis.wrap()
 def train(config):
     torch.set_num_threads(4)
-    config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
-    config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
+    if type(config.target_returns) == str:
+        config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
+        config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
     set_seed(config.train_seed, deterministic_torch=config.deterministic_torch)
     # init tensorboard 
     current_upupupup_dir = os.path.dirname(os.path.dirname(current_upup_dir))
