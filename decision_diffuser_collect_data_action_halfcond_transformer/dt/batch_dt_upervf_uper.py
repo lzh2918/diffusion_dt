@@ -103,7 +103,6 @@ def main(config: TrainConfig):
     for i in range(circle_time):
         trian_seed = np.random.randint(0,100,1)[0]
         eval_seed = np.random.randint(0,100,1)[0]
-        config = TrainConfig()
         config.train_seed = trian_seed
         config.eval_seed = eval_seed
         generate_percentage_list = ast.literal_eval(config.generate_percentage_list.replace("_",", "))

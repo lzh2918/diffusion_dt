@@ -83,7 +83,7 @@ for ((i=4;i<9;i++)) # 4个环境
 do
     for ((j=0;j<3;j++)) # cond length 3
     do
-        ((index= 3*(i-4)+j))
+        ((index= 3*i-3*4+j))
         ((model_index = ${model_index_map[$index]}))
         ((cuda_index = ${cuda_index_map[$index]}))
         echo $index

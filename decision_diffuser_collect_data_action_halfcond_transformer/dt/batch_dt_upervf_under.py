@@ -591,6 +591,9 @@ def train(config):
     uper_vf_tag = config.uper_vf_path.split("/")[-3]
     name = "hor_" + str(config.horizon) + "_geper_" + str(config.generate_percentage) + f"_{uper_vf_tag}"
     log_path = os.path.join(tb_root_dir_path, config.project, config.group, config.env_name, name, f"trainseed_{config.train_seed}_evalseed_{config.eval_seed}_"+timestamp)
+    print("tensorboard logpath: ", log_path)
+    if not os.path.exists(log_path):
+            os.makedirs(log_path)
     writer = SummaryWriter(log_dir=log_path)
 
     # data & dataloader setup
