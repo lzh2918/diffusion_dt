@@ -55,7 +55,7 @@ class TrainConfig:
     embedding_dropout: float = 0.1
     max_action: float = 1.0
     # training params
-    env_name: str = "halfcheetah-medium-v2" # 这里要求训练diffusion的数据集，和训练dt的数据集是同一个数据集。
+    env_name: str = "hopper-medium-expert-v2" # 这里要求训练diffusion的数据集，和训练dt的数据集是同一个数据集。
     learning_rate: float = 1e-4
     betas: Tuple[float, float] = (0.9, 0.999)
     weight_decay: float = 1e-4
@@ -80,15 +80,15 @@ class TrainConfig:
     horizon: int = 20
     generate_percentage_list: str = "(1.0_0.2_0.6_0.0)"
     generate_percentage: float = 0.5
-    diffusion_data_load_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/halfcheetah-medium-v2/diff_horizon_20_cond_length_10/uper_vf_er_0.95cond_length10_layer_3_head_1/diff_date_24-0606-225725_upervf_date_24-0613-133835/24-0620-140356/save_traj.npy"
+    diffusion_data_load_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/hopper-medium-expert-v2/diff_horizon_20_cond_length_2/uper_vf_er_0.95cond_length2_layer_3_head_1/diff_date_24-0608-210615_upervf_date_24-0613-133751/24-0620-140421/save_traj.npy"
     return_change_coef: float = 1.0
     dataset_scale: str = "(1.0_2.0)"
     # save
     save_model: bool = True
     # uper value func
-    cond_length: int = 10
+    cond_length: int = 2
     discount: float = 1.0
-    uper_vf_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/halfcheetah-medium-v2/er_0.95cond_length10_layer_3_head_1/24-0613-133835/dt_checkpoint.pt"
+    uper_vf_path: str = "/home/liuzhihong/diffusion_related/diffusion_dt/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/hopper-medium-expert-v2/er_0.95cond_length2_layer_3_head_1/24-0613-133751/dt_checkpoint.pt"
     # eval 
     eval_batch: int = 10
 

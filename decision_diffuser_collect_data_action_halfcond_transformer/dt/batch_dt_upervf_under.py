@@ -448,7 +448,7 @@ class batch_eval_env:
             # 最后的[0]用来降维
             batch_data.append(single_eval_env.reset()[0])
         batch_data = np.array(batch_data)
-        self.zero_state = batch_data[0]
+        self.zero_state = batch_data[0][None]
         self.last_done = [False for _ in range(self.eval_batch)]
         return batch_data
     
@@ -467,7 +467,7 @@ class batch_eval_env:
             next_state.append(single_next_state)
             reward.append(single_reward)
             done.append(single_done)
-        next_state = np.array(next_state)
+        next_state = np.concatenate(next_state,axis=0)
         reward = np.array(reward)
         done = np.array(done)
         return next_state, reward, done, info
@@ -534,7 +534,7 @@ def eval_rollout(
         next_state, reward, done, info = env.step(predicted_action)
         # at step t, we predict a_t, get s_{t + 1}, r_{t + 1}
         actions[:, step] = torch.as_tensor(predicted_action, dtype=torch.float, device=device)
-        states[:, step + 1] = torch.as_tensor(next_state, dtype=torch.float, device=device).squeeze()
+        states[:, step + 1] = torch.as_tensor(next_state.astype(np.float), dtype=torch.float, device=device).squeeze()
 
         reward = torch.as_tensor(reward, dtype=torch.float, device=device)
 
