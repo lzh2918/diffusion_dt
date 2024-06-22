@@ -575,7 +575,7 @@ def eval_rollout(
     if if_uper_return:
         uper_error = np.sum(np.stack(uper_error_list,axis=1), axis=1)/(episode_len-9)
     else:
-        uper_error = 0
+        uper_error = np.zeros((eval_batch,))
 
     return episode_return, episode_len, uper_error
 
