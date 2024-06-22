@@ -493,6 +493,7 @@ def eval_rollout(
     model: DecisionTransformer,
     env: batch_eval_env,
     target_return: float,
+    if_uper_return: bool,
     uper_vf,
     norm_dataset, # 用来norm
     unnorm_coef, # 用来upf unnorm
@@ -540,7 +541,7 @@ def eval_rollout(
 
         # uper_return predict
         # 此处设定就是uper vf预测的是cond length之后下一步的return to go
-        if step >= cond_length-1:
+        if step >= cond_length-1 and if_uper_return:
             traj = build_traj(
                 states[:,:step+1][:,-cond_length:],
                 actions[:,:step+1][:,-cond_length:],
@@ -571,8 +572,10 @@ def eval_rollout(
 
         if done.all():
             break
-
-    uper_error = np.sum(np.stack(uper_error_list,axis=1), axis=1)/(episode_len-9)
+    if if_uper_return:
+        uper_error = np.sum(np.stack(uper_error_list,axis=1), axis=1)/(episode_len-9)
+    else:
+        uper_error = 0
 
     return episode_return, episode_len, uper_error
 
@@ -582,6 +585,7 @@ def train(config):
     torch.set_num_threads(4)
     if type(config.target_returns) == str:
         config.target_returns = ast.literal_eval(config.target_returns.replace("_",", "))
+    if type(config.dataset_scale) == str:
         config.dataset_scale = ast.literal_eval(config.dataset_scale.replace("_",", "))
     set_seed(config.train_seed, deterministic_torch=config.deterministic_torch)
     # init tensorboard 
@@ -733,37 +737,39 @@ def train(config):
         if step % config.eval_every == 0 or step == config.update_steps - 1:
             model.eval()
             for target_return in config.target_returns:
-                batch_env.seed(config.eval_seed)
-                eval_returns = []
-                uper_error_list = []
-                for _ in trange(int(config.eval_episodes//batch_env.eval_batch), desc="Evaluation", leave=False):
-                    eval_return, eval_len, uper_error = eval_rollout(
-                        model=model,
-                        env=batch_env,
-                        target_return=target_return * config.reward_scale,
-                        uper_vf=uper_vf,
-                        norm_dataset=norm_dataset,
-                        unnorm_coef=(dataset.state_mean, dataset.state_std),
-                        cond_length=config.cond_length,
-                        return_scale=Config.returns_scale,
-                        reward_scale=config.reward_scale,
-                        device=config.device,
-                    )
-                    # unscale for logging & correct normalized score computation
-                    eval_returns.append(eval_return / config.reward_scale)
-                    # uper error
-                    uper_error_list.append(uper_error.mean())
+                for if_uper_return in [True, False]:
+                    batch_env.seed(config.eval_seed)
+                    eval_returns = []
+                    uper_error_list = []
+                    for _ in trange(int(config.eval_episodes//batch_env.eval_batch), desc="Evaluation", leave=False):
+                        eval_return, eval_len, uper_error = eval_rollout(
+                            model=model,
+                            env=batch_env,
+                            target_return=target_return * config.reward_scale,
+                            if_uper_return=if_uper_return,
+                            uper_vf=uper_vf,
+                            norm_dataset=norm_dataset,
+                            unnorm_coef=(dataset.state_mean, dataset.state_std),
+                            cond_length=config.cond_length,
+                            return_scale=Config.returns_scale,
+                            reward_scale=config.reward_scale,
+                            device=config.device,
+                        )
+                        # unscale for logging & correct normalized score computation
+                        eval_returns.append(eval_return / config.reward_scale)
+                        # uper error
+                        uper_error_list.append(uper_error.mean())
 
-                normalized_scores = (
-                    eval_env.get_normalized_score(np.array(eval_returns)) * 100
-                )
-                uper_error_list = np.array(uper_error_list)
-                # writer.add_scalar(f"eval/{target_return}_return_mean", np.mean(eval_returns), step)
-                # writer.add_scalar(f"eval/{target_return}_return_std", np.std(eval_returns), step)
-                writer.add_scalar(f"eval/{target_return}_normalized_score_mean", np.mean(normalized_scores), step)
-                writer.add_scalar(f"eval/{target_return}_normalized_score_std", np.std(normalized_scores), step)
-                writer.add_scalar(f"eval/{target_return}_uper_error_mean", uper_error_list.mean(), step)
-                writer.add_scalar(f"eval/{target_return}_uper_error_std", uper_error_list.std(), step)
+                    normalized_scores = (
+                        eval_env.get_normalized_score(np.array(eval_returns)) * 100
+                    )
+                    uper_error_list = np.array(uper_error_list)
+                    # writer.add_scalar(f"eval/{target_return}_return_mean", np.mean(eval_returns), step)
+                    # writer.add_scalar(f"eval/{target_return}_return_std", np.std(eval_returns), step)
+                    writer.add_scalar(f"eval_{target_return}/uper_{if_uper_return}_norm_score_mean", np.mean(normalized_scores), step)
+                    writer.add_scalar(f"eval_{target_return}/uper_{if_uper_return}_norm_score_std", np.std(normalized_scores), step)
+                    writer.add_scalar(f"eval_{target_return}/uper_{if_uper_return}_uper_error_mean", uper_error_list.mean(), step)
+                    writer.add_scalar(f"eval_{target_return}/uper_{if_uper_return}_uper_error_std", uper_error_list.std(), step)
             model.train()
 
     if config.save_model is not None:

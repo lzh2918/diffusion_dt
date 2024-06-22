@@ -68,7 +68,7 @@ class TrainConfig:
     # evaluation params
     target_returns: str = "(2000.0_2500.0_3000.0)"
     eval_episodes: int = 20
-    eval_every: int = 20_00 # 调试修改过
+    eval_every: int = 50_00 # 调试修改过
     # eval_every: int = 10 # 调试修改过
     # general params
     checkpoints_path: Optional[str] = None
@@ -105,6 +105,14 @@ def main(config: TrainConfig):
         eval_seed = np.random.randint(0,100,1)[0]
         config.train_seed = trian_seed
         config.eval_seed = eval_seed
+        if "halfcheetah" in config.env_name:
+            config.target_returns = "(0.0_10000.0_14000.0)"
+        elif "hopper" in config.env_name:
+            config.target_returns = "(0.0_2700.0_4000.0)"
+        elif "walker2d" in config.env_name:
+            config.target_returns = "(0.0_3800.0_5500.0)"
+        assert config.env_name in config.uper_vf_path
+        assert config.env_name in config.diffusion_data_load_path
         generate_percentage_list = ast.literal_eval(config.generate_percentage_list.replace("_",", "))
         for generate_percentage in generate_percentage_list:
             config.generate_percentage = generate_percentage

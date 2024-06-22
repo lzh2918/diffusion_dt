@@ -3,14 +3,14 @@
 cuda=("0" "1" "2" "3")
 
 project="dt"
-group="dt_upertimelong"
+group="dt_upertimelong_0622"
 # name="ho_20_scale_0.7_1.3"
 
 task=("halfcheetah-medium-v2" "halfcheetah-medium-replay-v2" "halfcheetah-medium-expert-v2" "hopper-medium-v2" "hopper-medium-replay-v2" "hopper-medium-expert-v2" "walker2d-medium-v2" "walker2d-medium-replay-v2" "walker2d-medium-expert-v2")
 horizon=20
 generate_percentage_list="(1.0_0.2_0.6_0.0)"
-target_returns="(0.0_3000.0_5000.0)"
 cond_length=(2 5 10) 
+eval_every=5000
 diffusion_data_load_path=(/home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/halfcheetah-medium-v2/diff_horizon_20_cond_length_2/uper_vf_er_0.95cond_length2_layer_3_head_1/diff_date_24-0606-225729_upervf_date_24-0613-133827/24-0620-140355/save_traj.npy # halfcheetah medium 2
                           /home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/halfcheetah-medium-v2/diff_horizon_20_cond_length_5/uper_vf_er_0.95cond_length5_layer_3_head_1/diff_date_24-0606-225727_upervf_date_24-0613-133831/24-0620-140355/save_traj.npy # halfcheetah medium 5
                           /home/liuzhihong/diffusion_dt_temp/exp_result/saved_model/collect_data/half_cond_diffusion_store_data/longtime_upervf/halfcheetah-medium-v2/diff_horizon_20_cond_length_10/uper_vf_er_0.95cond_length10_layer_3_head_1/diff_date_24-0606-225725_upervf_date_24-0613-133835/24-0620-140356/save_traj.npy # halfcheetah medium 10
@@ -91,9 +91,9 @@ do
                                                 --project $project \
                                                 --group $group \
                                                 --env_name ${task[$i]} \
+                                                --eval_every $eval_every \
                                                 --horizon $horizon \
                                                 --generate_percentage_list $generate_percentage_list  \
-                                                --target_returns $target_returns\
                                                 --cond_length ${cond_length[$j]}\
                                                 --diffusion_data_load_path ${diffusion_data_load_path[$model_index]}\
                                                 --uper_vf_path ${upervf_path[$model_index]} > $log_dir 2>&1 &
