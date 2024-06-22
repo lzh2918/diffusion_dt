@@ -105,12 +105,13 @@ def main(config: TrainConfig):
         eval_seed = np.random.randint(0,100,1)[0]
         config.train_seed = trian_seed
         config.eval_seed = eval_seed
+        # 下面的值就相当于给一个下界，不能给的太高。
         if "halfcheetah" in config.env_name:
-            config.target_returns = "(0.0_10000.0_14000.0)"
+            config.target_returns = "(0.0_70000.0_13000.0)"
         elif "hopper" in config.env_name:
-            config.target_returns = "(0.0_2700.0_4000.0)"
+            config.target_returns = "(0.0_2000.0_4000.0)"
         elif "walker2d" in config.env_name:
-            config.target_returns = "(0.0_3800.0_5500.0)"
+            config.target_returns = "(0.0_3500.0_5500.0)"
         assert config.env_name in config.uper_vf_path
         assert config.env_name in config.diffusion_data_load_path
         generate_percentage_list = ast.literal_eval(config.generate_percentage_list.replace("_",", "))
