@@ -515,6 +515,9 @@ def eval_rollout(
     states[:, 0] = torch.as_tensor(env.reset(), device=device)
     returns[:, 0] = torch.as_tensor(target_return, device=device)
 
+    target_keep_returns = torch.zeros(eval_batch, model.episode_len + 1, dtype=torch.float, device=device)
+    target_keep_returns[:, 0] = torch.as_tensor(target_return, device=device)
+
     # cannot step higher than model episode len, as timestep embeddings will crash
     episode_return, episode_len = np.zeros((10,)), np.zeros((10,))
 
@@ -556,14 +559,16 @@ def eval_rollout(
             # 有的环境会提前done掉，这里要维护一下
             uper_returns[done] = 0.0
             uper_returns = uper_returns * return_scale * reward_scale
-            uper_error_list.append((uper_returns - (returns[:, step] - reward)).cpu().numpy())
-            less_index = uper_returns < (returns[:, step] - reward)
-            uper_returns[less_index] = (returns[:, step] - reward)[less_index]
+            uper_error_list.append((uper_returns - (target_keep_returns[:, step] - reward)).cpu().numpy())
+
+            less_index = uper_returns < (target_keep_returns[:, step] - reward)
+            uper_returns[less_index] = (target_keep_returns[:, step] - reward)[less_index]
             next_return = uper_returns
         else:
             next_return = returns[:, step] - reward
         next_return[done] = 0
         returns[:, step + 1] = torch.as_tensor(next_return)
+        target_keep_returns[:, step + 1] = torch.as_tensor(target_keep_returns[:, step] - reward)
 
         episode_return += reward.cpu().numpy()
         episode_add = np.ones_like(episode_len)
@@ -758,7 +763,7 @@ def train(config):
                         # unscale for logging & correct normalized score computation
                         eval_returns.append(eval_return / config.reward_scale)
                         # uper error
-                        uper_error_list.append(uper_error.mean())
+                        uper_error_list.append(uper_error.mean() / config.reward_scale)
 
                     normalized_scores = (
                         eval_env.get_normalized_score(np.array(eval_returns)) * 100
