@@ -12,6 +12,13 @@ if __name__ == '__main__':
     from params_proto.neo_hyper import Sweep
     import argparse
     import datetime
+    import re
+
+    def extract_numbers_after_char(string, char):
+        pattern = f'{char}(\\d+)'
+        matches = re.findall(pattern, string)
+        return matches
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="halfcheetah-medium-replay-v2")
@@ -36,7 +43,9 @@ if __name__ == '__main__':
     parser.add_argument("--value_func_emb_dim", type=int, default=128)
     parser.add_argument("--max_episode_len", type=int, default=1000)
     parser.add_argument("--uper_vf_path", type=str, default="/home/liuzhihong/diffusion_dt_temp/code/exp_result/saved_model/collect_data/uper_value_func/halfcond_transformer_noreward/halfcheetah-medium-replay-v2/er_0.95cond_length5_layer_3_head_1/24-0618-143732/uper_value_func_checkpoint.pt")
-    parser.add_argument("upervf_type", type=str, default="longtime_upervf")
+    parser.add_argument("--upervf_type", type=str, default="longtime_upervf")
+    parser.add_argument("--num_layers", type=int, default=3)
+    parser.add_argument("--num_heads", type=int, default=1)
 
     args = parser.parse_args()
 
@@ -45,13 +54,20 @@ if __name__ == '__main__':
     save_root_dir_path = os.path.join(current_upupupup_dir, "exp_result", "saved_model", "collect_data")
     timestamp = datetime.datetime.now().strftime("%y-%m%d-%H%M%S")
     load_diff_path_list = args.loadpath.split("/")
-    save_traj_root_path = "/".join(load_diff_path_list[:-4])
+    save_traj_root_path = "/".join(load_diff_path_list[:-5])
     uper_vf_tag = args.uper_vf_path.split("/")[-3]
     uper_vf_date = args.uper_vf_path.split("/")[-2]
     save_traj_path = os.path.join(save_traj_root_path, load_diff_path_list[-5]+"_store_data", args.upervf_type, load_diff_path_list[-4], "diff_"+load_diff_path_list[-3],f"uper_vf_{uper_vf_tag}",f"diff_date_{load_diff_path_list[-2]}_upervf_date_{uper_vf_date}",timestamp)
     parser.add_argument("--save_traj_path", type=str, default=save_traj_path)
 
     args = parser.parse_args()
+
+    # 设置upervf参数
+    upervf_tag = args.uper_vf_path.split('/')[-3]
+    num_layers = int(extract_numbers_after_char(upervf_tag,"layer_")[0])
+    num_heads = int(extract_numbers_after_char(upervf_tag,"head_")[0])
+    args.num_layers = num_layers
+    args.num_heads = num_heads
 
     jsonl_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"default_inv.jsonl")
     sweep = Sweep(RUN, Config).load(jsonl_path)

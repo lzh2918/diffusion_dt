@@ -11,7 +11,7 @@ from diffuser.datasets.d4rl import suppress_output
 from my_add_code.traj_buffer import traj_buffer
 import datetime
 
-from value_func.uper_value_function import Value_function_Transformer
+from value_func.uper_value_function_fixtime import Value_function_Transformer
 
 """
 有几个需要敲定的事情, 1.这个return学和存的时候是不是方式正确的。2.eval store path有没有问题。
@@ -219,8 +219,8 @@ def evaluate(args, **deps):
         embedding_dim=args.value_func_emb_dim,
         seq_len=args.cond_length,
         episode_len=args.max_episode_len,
-        num_layers=3,
-        num_heads=1,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
         attention_dropout=0.1,
         residual_dropout=0.1,
         embedding_dropout=0.1,
@@ -282,3 +282,4 @@ def evaluate(args, **deps):
         collected_num += num_eval
 
     store_buffer.save(args.save_traj_path)
+    print(f"successfully saved traj in {args.save_traj_path}")
