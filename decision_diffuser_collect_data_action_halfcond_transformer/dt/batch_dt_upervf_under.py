@@ -31,7 +31,7 @@ import ast
 from torch.utils.tensorboard import SummaryWriter
 
 # uper vf
-from value_func.uper_value_function import Value_function_Transformer
+from value_func.uper_value_function_fixtime import Value_function_Transformer
 from value_func.dt_sequence import SequenceHalfcondTimestepDataset
 from config.locomotion_config import Config
 
